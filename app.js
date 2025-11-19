@@ -13,7 +13,6 @@ const CHECKLIST_TASKS = [
 ];
 
 const telegram = window.Telegram?.WebApp;
-let fullscreenRequested = false;
 
 const state = {
   userId: localStorage.getItem(STORAGE_KEYS.userId) || 'local-user',
@@ -30,14 +29,20 @@ const state = {
 const onboardingSection = document.getElementById('onboarding');
 const todaySection = document.getElementById('todayView');
 const progressSection = document.getElementById('progressView');
-const nav = document.getElementById('mainNav');
 const toastEl = document.getElementById('toast');
 
 const currentWakeSelect = document.getElementById('currentWakeSelect');
 const targetWakeSelect = document.getElementById('targetWakeSelect');
 const challengeButtons = document.querySelectorAll('.challenge-options .chip');
-const challengeHint = document.getElementById('challengeHint');
 const onboardingForm = document.getElementById('onboardingForm');
+const onboardingSteps = document.querySelectorAll('.onboarding-step');
+const stepDots = document.querySelectorAll('[data-step-indicator]');
+const prevStepBtn = document.getElementById('prevStep');
+const nextStepBtn = document.getElementById('nextStep');
+const startChallengeBtn = document.getElementById('startChallenge');
+const summaryCurrent = document.getElementById('summaryCurrent');
+const summaryTarget = document.getElementById('summaryTarget');
+const summaryDays = document.getElementById('summaryDays');
 
 const statusText = document.getElementById('statusText');
 const dayTitle = document.getElementById('dayTitle');
@@ -58,6 +63,7 @@ const moodPicker = document.getElementById('moodPicker');
 const saveDayButton = document.getElementById('saveDay');
 const restartButton = document.getElementById('restartButton');
 const backTodayBtn = document.getElementById('backToday');
+const openProgressButton = document.getElementById('openProgress');
 
 const progressGrid = document.getElementById('progressGrid');
 const dayDetails = document.getElementById('dayDetails');
@@ -70,6 +76,11 @@ const moodState = {
   selected: null,
 };
 
+let onboardingStep = 0;
+let activeView = 'onboarding';
+let fullscreenGestureAttached = false;
+let fullscreenActive = false;
+
 initTimeSelect(currentWakeSelect, '08:00');
 initTimeSelect(targetWakeSelect, '07:00');
 initTimeSelect(actualSleepSelect);
@@ -77,6 +88,8 @@ initTimeSelect(actualWakeSelect);
 
 registerEvents();
 bootstrapTelegram();
+updateOnboardingSummary();
+updateOnboardingStepUI();
 refreshUI();
 
 function parseJSON(value) {
@@ -106,9 +119,15 @@ function registerEvents() {
     btn.addEventListener('click', () => {
       challengeButtons.forEach((b) => b.classList.remove('chip-active'));
       btn.classList.add('chip-active');
-      challengeHint.textContent = `${btn.dataset.days} дней`;
+      summaryDays.textContent = btn.dataset.days;
+      updateOnboardingSummary();
     });
   });
+
+  prevStepBtn.addEventListener('click', handlePrevStep);
+  nextStepBtn.addEventListener('click', handleNextStep);
+  currentWakeSelect.addEventListener('change', updateOnboardingSummary);
+  targetWakeSelect.addEventListener('change', updateOnboardingSummary);
 
   onboardingForm.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -135,15 +154,12 @@ function registerEvents() {
     state.stats = { current: 0, best: 0 };
 
     persistState();
-    attemptFullscreen();
+    attemptFullscreen(true);
+    activeView = 'todayView';
     refreshUI();
   });
 
-  nav.addEventListener('click', (event) => {
-    if (event.target.matches('button')) {
-      showView(event.target.dataset.view);
-    }
-  });
+  openProgressButton.addEventListener('click', () => showView('progressView'));
 
   restartButton.addEventListener('click', () => {
     const ok = confirm('Сбросить прогресс и начать заново?');
@@ -154,6 +170,13 @@ function registerEvents() {
     localStorage.removeItem(STORAGE_KEYS.settings);
     localStorage.removeItem(STORAGE_KEYS.days);
     localStorage.removeItem(STORAGE_KEYS.stats);
+    onboardingStep = 0;
+    challengeButtons.forEach((btn) => {
+      btn.classList.toggle('chip-active', btn.dataset.days === '14');
+    });
+    summaryDays.textContent = '14';
+    updateOnboardingStepUI();
+    updateOnboardingSummary();
     refreshUI();
   });
 
@@ -189,34 +212,87 @@ function registerEvents() {
 function refreshUI() {
   const hasSettings = Boolean(state.settings && state.days.length);
   onboardingSection.classList.toggle('hidden', hasSettings);
-  todaySection.classList.toggle('hidden', !hasSettings);
-  progressSection.classList.toggle('hidden', !hasSettings);
-  nav.classList.toggle('hidden', !hasSettings);
-
   if (!hasSettings) {
-    showView('onboarding');
+    todaySection.classList.add('hidden');
+    progressSection.classList.add('hidden');
+    activeView = 'onboarding';
+    updateOnboardingSummary();
+    updateOnboardingStepUI();
     return;
   }
 
-  showView('todayView');
+  if (activeView === 'onboarding') {
+    activeView = 'todayView';
+  }
+
   renderToday();
   renderProgress();
+  showView(activeView);
 }
 
 function showView(viewId) {
   if (viewId === 'todayView') {
     todaySection.classList.remove('hidden');
     progressSection.classList.add('hidden');
-    Array.from(nav.children).forEach((btn) => btn.classList.toggle('active', btn.dataset.view === 'todayView'));
+    activeView = 'todayView';
   } else if (viewId === 'progressView') {
     progressSection.classList.remove('hidden');
     todaySection.classList.add('hidden');
-    Array.from(nav.children).forEach((btn) => btn.classList.toggle('active', btn.dataset.view === 'progressView'));
-  } else {
-    onboardingSection.classList.remove('hidden');
-    todaySection.classList.add('hidden');
-    progressSection.classList.add('hidden');
+    activeView = 'progressView';
   }
+}
+
+function handleNextStep() {
+  if (!validateOnboardingStep(onboardingStep)) return;
+  if (onboardingStep < onboardingSteps.length - 1) {
+    onboardingStep += 1;
+    updateOnboardingStepUI();
+  }
+}
+
+function handlePrevStep() {
+  if (onboardingStep === 0) return;
+  onboardingStep -= 1;
+  updateOnboardingStepUI();
+}
+
+function updateOnboardingStepUI() {
+  onboardingSteps.forEach((stepEl, idx) => {
+    stepEl.classList.toggle('active', idx === onboardingStep);
+  });
+  stepDots.forEach((dot) => {
+    const index = Number(dot.dataset.stepIndicator);
+    dot.classList.toggle('active', index <= onboardingStep);
+  });
+  if (prevStepBtn) prevStepBtn.disabled = onboardingStep === 0;
+  if (nextStepBtn) nextStepBtn.classList.toggle('hidden', onboardingStep === onboardingSteps.length - 1);
+  startChallengeBtn?.classList.toggle('hidden', onboardingStep !== onboardingSteps.length - 1);
+  updateOnboardingSummary();
+}
+
+function updateOnboardingSummary() {
+  summaryCurrent.textContent = formatSummaryValue(currentWakeSelect.value);
+  summaryTarget.textContent = formatSummaryValue(targetWakeSelect.value);
+  const selected = document.querySelector('.challenge-options .chip-active');
+  summaryDays.textContent = selected?.dataset.days || summaryDays.textContent || '14';
+}
+
+function formatSummaryValue(value) {
+  if (value === '' || value == null) return '—';
+  const minutes = Number(value);
+  return Number.isNaN(minutes) ? '—' : formatTime(minutes);
+}
+
+function validateOnboardingStep(stepIndex) {
+  if (stepIndex === 0 && !currentWakeSelect.value) {
+    showToast('Выбери текущее время подъёма');
+    return false;
+  }
+  if (stepIndex === 1 && !targetWakeSelect.value) {
+    showToast('Укажи желаемое время подъёма');
+    return false;
+  }
+  return true;
 }
 
 function generatePlan({ currentWake, targetWake, challengeDays }) {
@@ -549,23 +625,45 @@ function bootstrapTelegram() {
     localStorage.setItem(STORAGE_KEYS.userId, state.userId);
     telegram.ready();
     telegram.expand?.();
+    attemptFullscreen();
+    setupFullscreenGesture();
     telegram.onEvent?.('fullscreenChanged', (isFull) => {
-      console.log('fullscreenChanged', isFull);
+      fullscreenActive = Boolean(isFull);
+      if (!fullscreenActive) {
+        setupFullscreenGesture();
+      }
     });
     telegram.onEvent?.('fullscreenFailed', (reason) => {
       console.warn('Fullscreen failed', reason);
+      setupFullscreenGesture();
     });
   } catch (error) {
     console.warn('Telegram init failed', error);
   }
 }
 
-function attemptFullscreen() {
-  if (fullscreenRequested || !telegram?.requestFullscreen) return;
-  fullscreenRequested = true;
+function attemptFullscreen(force = false) {
+  if (!telegram?.requestFullscreen) return;
+  if (!force && fullscreenActive) return;
   try {
     telegram.requestFullscreen();
   } catch (error) {
     console.warn('Fullscreen request error', error);
   }
+}
+
+function setupFullscreenGesture() {
+  if (!telegram?.requestFullscreen || fullscreenGestureAttached || fullscreenActive) return;
+  fullscreenGestureAttached = true;
+  const handler = () => {
+    attemptFullscreen(true);
+    document.removeEventListener('pointerup', handler);
+    document.removeEventListener('keydown', handler);
+    fullscreenGestureAttached = false;
+    if (!fullscreenActive) {
+      setTimeout(setupFullscreenGesture, 200);
+    }
+  };
+  document.addEventListener('pointerup', handler);
+  document.addEventListener('keydown', handler);
 }

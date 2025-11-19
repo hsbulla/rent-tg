@@ -20,30 +20,62 @@
           <p class="eyebrow">Бережный старт</p>
           <h1>Вернём твой идеальный режим сна</h1>
           <p class="subtitle">
-            Укажи текущие привычки, цель и длительность челленджа. План займёт меньше минуты.
+            Ответь на три коротких шага: текущий подъём, желаемый и длительность челленджа.
           </p>
         </header>
-        <form id="onboardingForm" class="onboarding-form card">
-          <label class="field">
-            <span>Текущее время подъёма</span>
-            <select id="currentWakeSelect" required></select>
-          </label>
-          <label class="field">
-            <span>Желаемое время подъёма</span>
-            <select id="targetWakeSelect" required></select>
-          </label>
-          <div class="field">
-            <div class="field-top">
-              <span>Длительность челленджа</span>
-              <span id="challengeHint" class="hint">14 дней</span>
-            </div>
-            <div class="challenge-options">
-              <button type="button" data-days="7" class="chip">7 дней</button>
-              <button type="button" data-days="14" class="chip chip-active">14 дней</button>
-              <button type="button" data-days="21" class="chip">21 день</button>
-            </div>
+        <div class="stepper" id="onboardingStepper">
+          <span class="step-dot active" data-step-indicator="0"></span>
+          <span class="step-dot" data-step-indicator="1"></span>
+          <span class="step-dot" data-step-indicator="2"></span>
+        </div>
+        <form id="onboardingForm" class="onboarding-form">
+          <div class="onboarding-step card active" data-step-index="0">
+            <p class="step-title">Шаг 1 · Текущее утро</p>
+            <label class="field">
+              <span>Во сколько просыпаешься сейчас?</span>
+              <select id="currentWakeSelect" required></select>
+            </label>
+            <p class="hint-text">Выбираем с шагом 15 минут. Можно менять позже.</p>
           </div>
-          <button id="startChallenge" class="main-action" type="submit">Начать челлендж</button>
+          <div class="onboarding-step card" data-step-index="1">
+            <p class="step-title">Шаг 2 · Цель</p>
+            <label class="field">
+              <span>Желаемое время подъёма</span>
+              <select id="targetWakeSelect" required></select>
+            </label>
+            <p class="hint-text">Цель должна быть реалистичной и радовать тебя по утрам.</p>
+          </div>
+          <div class="onboarding-step card" data-step-index="2">
+            <p class="step-title">Шаг 3 · Длительность</p>
+            <div class="field">
+              <span>Длительность челленджа</span>
+              <div class="challenge-options">
+                <button type="button" data-days="7" class="chip">7 дней</button>
+                <button type="button" data-days="14" class="chip chip-active">14 дней</button>
+                <button type="button" data-days="21" class="chip">21 день</button>
+              </div>
+            </div>
+            <div class="summary-card">
+              <div>
+                <span>Текущее</span>
+                <strong id="summaryCurrent">—</strong>
+              </div>
+              <div>
+                <span>Цель</span>
+                <strong id="summaryTarget">—</strong>
+              </div>
+              <div>
+                <span>Дней</span>
+                <strong id="summaryDays">14</strong>
+              </div>
+            </div>
+            <p class="hint-text">Последний шаг: сохраним старт и откроем главный экран.</p>
+          </div>
+          <div class="onboarding-controls">
+            <button type="button" id="prevStep" class="ghost">Назад</button>
+            <button type="button" id="nextStep" class="ghost ghost-strong">Далее</button>
+          </div>
+          <button id="startChallenge" class="main-action hidden" type="submit">Запустить челлендж</button>
         </form>
       </section>
 
@@ -53,7 +85,10 @@
             <p class="eyebrow" id="statusText"></p>
             <h2 id="dayTitle"></h2>
           </div>
-          <button id="restartButton" class="ghost">Сбросить</button>
+          <div class="header-actions">
+            <button id="openProgress" class="ghost">Прогресс</button>
+            <button id="restartButton" class="ghost">Сбросить</button>
+          </div>
         </header>
 
         <div class="card progress-card">
@@ -142,11 +177,6 @@
         </div>
       </section>
 
-      <nav class="bottom-nav hidden" id="mainNav">
-        <button data-view="todayView" class="active">Сегодня</button>
-        <button data-view="progressView">Прогресс</button>
-      </nav>
     </div>
-    <div class="toast" id="toast"></div>
   </body>
 </html>
