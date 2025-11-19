@@ -1,25 +1,152 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1220" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>RentHub — аренда оборудования</title>
-  <link rel="stylesheet" href="css/styles.css" />
-</head>
-<body>
-  <div id="toast-root" aria-live="assertive"></div>
-  <div id="modal-root"></div>
-  <div class="app-shell">
-    <header id="site-header"></header>
-    <main id="app" tabindex="-1"></main>
-    <footer id="site-footer"></footer>
-  </div>
-  <noscript>
-    Для работы этого прототипа требуется включенный JavaScript.
-  </noscript>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script type="module" src="js/main.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sleep Ritual — Telegram Mini App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <section id="onboarding" class="view">
+        <header>
+          <p class="eyebrow">Бережный старт</p>
+          <h1>Вернём твой идеальный режим сна</h1>
+          <p class="subtitle">
+            Укажи текущие привычки, цель и длительность челленджа. План займёт меньше минуты.
+          </p>
+        </header>
+        <form id="onboardingForm" class="onboarding-form card">
+          <label class="field">
+            <span>Текущее время подъёма</span>
+            <select id="currentWakeSelect" required></select>
+          </label>
+          <label class="field">
+            <span>Желаемое время подъёма</span>
+            <select id="targetWakeSelect" required></select>
+          </label>
+          <div class="field">
+            <div class="field-top">
+              <span>Длительность челленджа</span>
+              <span id="challengeHint" class="hint">14 дней</span>
+            </div>
+            <div class="challenge-options">
+              <button type="button" data-days="7" class="chip">7 дней</button>
+              <button type="button" data-days="14" class="chip chip-active">14 дней</button>
+              <button type="button" data-days="21" class="chip">21 день</button>
+            </div>
+          </div>
+          <button id="startChallenge" class="main-action" type="submit">Начать челлендж</button>
+        </form>
+      </section>
+
+      <section id="todayView" class="view hidden">
+        <header class="view-header">
+          <div>
+            <p class="eyebrow" id="statusText"></p>
+            <h2 id="dayTitle"></h2>
+          </div>
+          <button id="restartButton" class="ghost">Сбросить</button>
+        </header>
+
+        <div class="card progress-card">
+          <div class="progress-ring">
+            <svg width="120" height="120">
+              <circle class="track" cx="60" cy="60" r="52"></circle>
+              <circle class="indicator" cx="60" cy="60" r="52"></circle>
+            </svg>
+            <div class="progress-label">
+              <span id="progressPercent">0%</span>
+              <small id="progressDays">0/0</small>
+            </div>
+          </div>
+          <div>
+            <p class="plan-line">День <span id="dayNumber">0</span> из <span id="totalDays">0</span></p>
+            <p class="plan-line accent" id="todayShift"></p>
+            <div class="streak-pill" id="streakText"></div>
+          </div>
+        </div>
+
+        <div class="card plan-card">
+          <p class="eyebrow">План на сегодня</p>
+          <div class="plan-row">
+            <div class="icon-pill moon">🌙</div>
+            <div>
+              <p class="label">Лечь до</p>
+              <p class="value" id="sleepTarget">—</p>
+            </div>
+          </div>
+          <div class="plan-row">
+            <div class="icon-pill sun">☀️</div>
+            <div>
+              <p class="label">Встать до</p>
+              <p class="value" id="wakeTarget">—</p>
+            </div>
+          </div>
+          <div class="badge" id="streakBadge">+1 к серии, если удержишься 😉</div>
+        </div>
+
+        <div class="card checklist-card">
+          <p class="eyebrow">Мини-чеклист</p>
+          <ul id="checklist"></ul>
+        </div>
+
+        <div class="card log-card">
+          <p class="eyebrow">Фиксация дня</p>
+          <label class="field">
+            <span>Во сколько лёг(ла)?</span>
+            <select id="actualSleepSelect"></select>
+          </label>
+          <label class="field">
+            <span>Во сколько встал(а)?</span>
+            <select id="actualWakeSelect"></select>
+          </label>
+          <div class="field">
+            <span>Самочувствие</span>
+            <div id="moodPicker" class="mood-picker">
+              <button type="button" data-mood="sad">😞</button>
+              <button type="button" data-mood="ok">😐</button>
+              <button type="button" data-mood="good">🙂</button>
+              <button type="button" data-mood="great">😁</button>
+            </div>
+          </div>
+          <button id="saveDay" class="main-action">Сохранить день</button>
+        </div>
+      </section>
+
+      <section id="progressView" class="view hidden">
+        <header class="view-header">
+          <div>
+            <p class="eyebrow">Общий прогресс</p>
+            <h2>Сетка челленджа</h2>
+          </div>
+          <button id="backToday" class="ghost">Сегодня</button>
+        </header>
+        <div class="card grid-card">
+          <div id="progressGrid" class="grid"></div>
+          <div id="dayDetails" class="day-details hidden"></div>
+        </div>
+        <div class="card stats-card">
+          <p class="eyebrow">Статистика</p>
+          <div class="stat-line"><span>Серия зелёных дней</span><strong id="currentStreakStat">0</strong></div>
+          <div class="stat-line"><span>Лучшая серия</span><strong id="bestStreakStat">0</strong></div>
+          <div class="stat-line"><span>Зелёных дней</span><strong id="greenCount">0</strong></div>
+          <div class="stat-line"><span>Среднее время подъёма</span><strong id="avgWake">—</strong></div>
+        </div>
+      </section>
+
+      <nav class="bottom-nav hidden" id="mainNav">
+        <button data-view="todayView" class="active">Сегодня</button>
+        <button data-view="progressView">Прогресс</button>
+      </nav>
+    </div>
+    <div class="toast" id="toast"></div>
+  </body>
 </html>
